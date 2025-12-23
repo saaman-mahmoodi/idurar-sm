@@ -24,6 +24,7 @@ const PaymentUpdate = lazy(() => import('@/pages/Payment/PaymentUpdate'));
 const Settings = lazy(() => import('@/pages/Settings/Settings'));
 const PaymentMode = lazy(() => import('@/pages/PaymentMode'));
 const Taxes = lazy(() => import('@/pages/Taxes'));
+const LeadGenerator = lazy(() => import('@/pages/LeadGenerator'));
 
 const Profile = lazy(() => import('@/pages/Profile'));
 
@@ -51,6 +52,10 @@ let routes = {
     {
       path: '/customer',
       element: <Customer />,
+    },
+    {
+      path: '/leads',
+      element: <LeadGenerator />,
     },
 
     {
