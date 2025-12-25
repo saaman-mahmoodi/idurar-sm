@@ -14,7 +14,18 @@ if (major < 20) {
 require('dotenv').config({ path: '.env' });
 require('dotenv').config({ path: '.env.local' });
 
-mongoose.connect(process.env.DATABASE);
+const mongooseOptions = {
+  retryWrites: true,
+  w: 'majority',
+};
+
+// For Node 22+ compatibility with MongoDB Atlas
+if (major >= 22) {
+  mongooseOptions.tls = true;
+  mongooseOptions.tlsAllowInvalidCertificates = false;
+}
+
+mongoose.connect(process.env.DATABASE, mongooseOptions);
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
