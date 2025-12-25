@@ -229,7 +229,11 @@ const request = {
   upload: async ({ entity, id, jsonData }) => {
     try {
       includeToken();
-      const response = await axios.patch(entity + '/upload/' + id, jsonData, {
+      const formData = new FormData();
+      for (const key in jsonData) {
+        formData.append(key, jsonData[key]);
+      }
+      const response = await axios.patch(entity + '/upload/' + id, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
