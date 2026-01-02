@@ -153,7 +153,7 @@ export default function ReadItem({ config, selectedItem }) {
             key={`${uniqueId()}`}
             onClick={() => {
               window.open(
-                `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
+                `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp.id}.pdf`,
                 '_blank'
               );
             }}
@@ -165,7 +165,7 @@ export default function ReadItem({ config, selectedItem }) {
             key={`${uniqueId()}`}
             loading={mailInProgress}
             onClick={() => {
-              send(currentErp._id);
+              send(currentErp.id);
             }}
             icon={<MailOutlined />}
           >
@@ -174,7 +174,7 @@ export default function ReadItem({ config, selectedItem }) {
           <Button
             key={`${uniqueId()}`}
             onClick={() => {
-              dispatch(erp.convert({ entity, id: currentErp._id }));
+              dispatch(erp.convert({ entity, id: currentErp.id }));
             }}
             icon={<RetweetOutlined />}
             style={{ display: entity === 'quote' ? 'inline-block' : 'none' }}
@@ -191,7 +191,7 @@ export default function ReadItem({ config, selectedItem }) {
                   data: currentErp,
                 })
               );
-              navigate(`/${entity.toLowerCase()}/update/${currentErp._id}`);
+              navigate(`/${entity.toLowerCase()}/update/${currentErp.id}`);
             }}
             type="primary"
             icon={<EditOutlined />}

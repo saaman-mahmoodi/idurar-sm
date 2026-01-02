@@ -44,6 +44,15 @@ exports.generatePdf = async (
         zero_format,
       } = settings;
 
+      console.log('Settings for PDF:', {
+        currency_symbol,
+        currency_position,
+        decimal_sep,
+        thousand_sep,
+        cent_precision,
+        zero_format,
+      });
+
       const { moneyFormatter } = useMoney({
         settings: {
           currency_symbol,
@@ -57,6 +66,9 @@ exports.generatePdf = async (
       const { dateFormat } = useDate({ settings });
 
       settings.public_server_file = process.env.PUBLIC_SERVER_FILE;
+
+      console.log('Model being passed to template:', JSON.stringify(result, null, 2));
+      console.log('Test moneyFormatter with 100:', moneyFormatter({ amount: 100 }));
 
       const htmlContent = pug.renderFile('src/pdf/' + modelName + '.pug', {
         model: result,

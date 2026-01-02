@@ -1,7 +1,4 @@
 require('module-alias/register');
-const mongoose = require('mongoose');
-const { globSync } = require('glob');
-const path = require('path');
 
 // Make sure we are running node 7.6+
 const [major, minor] = process.versions.node.split('.').map(parseFloat);
@@ -14,37 +11,33 @@ if (major < 20) {
 require('dotenv').config({ path: '.env' });
 require('dotenv').config({ path: '.env.local' });
 
-const mongooseOptions = {
-  retryWrites: true,
-  w: 'majority',
-};
-
-// For Node 22+ compatibility with MongoDB Atlas
-if (major >= 22) {
-  mongooseOptions.tls = true;
-  mongooseOptions.tlsAllowInvalidCertificates = false;
-}
-
-mongoose.connect(process.env.DATABASE, mongooseOptions);
-
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-mongoose.connection.on('error', (error) => {
-  console.log(
-    `1. 🔥 Common Error caused issue → : check your .env file first and add your mongodb url`
-  );
-  console.error(`2. 🚫 Error → : ${error.message}`);
-});
+const startServer = async () => {
+  try {
+    // Initialize Supabase connection
+    const supabase = require('./config/supabase');
+    
+    // Test Supabase connection
+    const { data, error } = await supabase.from('admins').select('count').limit(1);
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Supabase Connection Failed:', error.message);
+      process.exit(1);
+    }
+    
+    console.log('✅ Supabase Connected Successfully');
+    
+    // Start our app!
+    const app = require('./app');
+    app.set('port', process.env.PORT || 8888);
+    const server = app.listen(app.get('port'), () => {
+      console.log(`Express running → On PORT : ${server.address().port}`);
+    });
+  } catch (error) {
+    console.error('❌ Server Startup Failed:', error.message);
+    process.exit(1);
+  }
+};
 
-const modelsFiles = globSync('./src/models/**/*.js');
-
-for (const filePath of modelsFiles) {
-  require(path.resolve(filePath));
-}
-
-// Start our app!
-const app = require('./app');
-app.set('port', process.env.PORT || 8888);
-const server = app.listen(app.get('port'), () => {
-  console.log(`Express running → On PORT : ${server.address().port}`);
-});
+startServer();

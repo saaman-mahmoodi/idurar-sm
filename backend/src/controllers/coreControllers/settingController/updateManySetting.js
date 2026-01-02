@@ -1,56 +1,64 @@
-const mongoose = require('mongoose');
-
-const Model = mongoose.model('Setting');
+const supabase = require('@/config/supabase');
 
 const updateManySetting = async (req, res) => {
-  // req/body = [{settingKey:"",settingValue}]
-  let settingsHasError = false;
-  const updateDataArray = [];
-  const { settings } = req.body;
+  try {
+    let settingsHasError = false;
+    const { settings } = req.body;
 
-  for (const setting of settings) {
-    if (!setting.hasOwnProperty('settingKey') || !setting.hasOwnProperty('settingValue')) {
-      settingsHasError = true;
-      break;
+    for (const setting of settings) {
+      if (!setting.hasOwnProperty('settingKey') || !setting.hasOwnProperty('settingValue')) {
+        settingsHasError = true;
+        break;
+      }
     }
 
-    const { settingKey, settingValue } = setting;
+    if (!settings || settings.length === 0) {
+      return res.status(202).json({
+        success: false,
+        result: null,
+        message: 'No settings provided ',
+      });
+    }
+    if (settingsHasError) {
+      return res.status(202).json({
+        success: false,
+        result: null,
+        message: 'Settings provided has Error',
+      });
+    }
 
-    updateDataArray.push({
-      updateOne: {
-        filter: { settingKey: settingKey },
-        update: { settingValue: settingValue },
-      },
-    });
-  }
+    // Update each setting individually (Supabase doesn't have bulkWrite)
+    let updateCount = 0;
+    for (const setting of settings) {
+      const { settingKey, settingValue } = setting;
+      const { error } = await supabase
+        .from('settings')
+        .update({ setting_value: settingValue })
+        .eq('setting_key', settingKey);
 
-  if (updateDataArray.length === 0) {
-    return res.status(202).json({
-      success: false,
-      result: null,
-      message: 'No settings provided ',
-    });
-  }
-  if (settingsHasError) {
-    return res.status(202).json({
-      success: false,
-      result: null,
-      message: 'Settings provided has Error',
-    });
-  }
-  const result = await Model.bulkWrite(updateDataArray);
+      if (!error) {
+        updateCount++;
+      }
+    }
 
-  if (!result || result.nMatched < 1) {
-    return res.status(404).json({
-      success: false,
-      result: null,
-      message: 'No settings found by to update',
-    });
-  } else {
+    if (updateCount < 1) {
+      return res.status(404).json({
+        success: false,
+        result: null,
+        message: 'No settings found by to update',
+      });
+    }
+
     return res.status(200).json({
       success: true,
       result: [],
       message: 'we update all settings',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      result: null,
+      message: error.message,
     });
   }
 };

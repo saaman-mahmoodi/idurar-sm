@@ -1,23 +1,22 @@
-const mongoose = require('mongoose');
-
-const Model = mongoose.model('Setting');
+const supabase = require('@/config/supabase');
 
 const readBySettingKey = async ({ settingKey }) => {
   try {
-    // Find document by id
-
     if (!settingKey) {
       return null;
     }
 
-    const result = await Model.findOne({ settingKey });
-    // If no results found, return document not found
-    if (!result) {
+    const { data: result, error } = await supabase
+      .from('settings')
+      .select('*')
+      .eq('setting_key', settingKey)
+      .single();
+
+    if (error || !result) {
       return null;
-    } else {
-      // Return success resposne
-      return result;
     }
+
+    return result;
   } catch {
     return null;
   }

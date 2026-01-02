@@ -1,5 +1,5 @@
 const { Client } = require('@googlemaps/google-maps-services-js');
-const Lead = require('@/models/appModels/Lead');
+const supabase = require('@/config/supabase');
 const { catchErrors } = require('@/handlers/errorHandlers');
 
 const googleMapsClient = new Client({});
@@ -9,7 +9,7 @@ const leadController = {
   generate: async (req, res) => {
     try {
       const { location, radius, category = 'establishment' } = req.body;
-      const userId = req.admin._id;
+      const userId = req.admin.id;
 
       if (!location || !radius) {
         return res.status(400).json({
@@ -130,7 +130,27 @@ const leadController = {
 
       // Save leads to database
       if (leadsToSave.length > 0) {
-        await Lead.insertMany(leadsToSave);
+        const { error: insertError } = await supabase
+          .from('leads')
+          .insert(leadsToSave.map(lead => ({
+            user_id: lead.userId,
+            business_name: lead.businessName,
+            address: lead.address,
+            phone: lead.phone,
+            website: lead.website,
+            place_id: lead.placeId,
+            rating: lead.rating,
+            user_ratings_total: lead.userRatingsTotal,
+            business_types: lead.businessTypes,
+            location: lead.location,
+            search_location: lead.searchLocation,
+            search_radius: lead.searchRadius
+          })));
+        
+        if (insertError) {
+          console.error('Error saving leads:', insertError);
+          throw insertError;
+        }
         console.log(`Successfully saved ${leadsToSave.length} leads to database`);
       } else {
         console.log('No leads to save - all businesses found have websites');
@@ -160,7 +180,7 @@ const leadController = {
   // Get user's leads
   list: async (req, res) => {
     try {
-      const userId = req.admin._id;
+      const userId = req.admin.id;
       const { page = 1, limit = 20, search } = req.query;
 
       const query = { userId };
@@ -173,13 +193,22 @@ const leadController = {
         ];
       }
 
-      const leads = await Lead.find(query)
-        .sort({ createdAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .lean();
+      let supabaseQuery = supabase
+        .from('leads')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range((page - 1) * limit, page * limit - 1);
 
-      const total = await Lead.countDocuments(query);
+      if (search) {
+        supabaseQuery = supabaseQuery.or(`business_name.ilike.%${search}%,address.ilike.%${search}%,website.ilike.%${search}%`);
+      }
+
+      const { data: leads, error, count: total } = await supabaseQuery;
+
+      if (error) {
+        throw error;
+      }
 
       res.json({
         success: true,
@@ -206,9 +235,19 @@ const leadController = {
   delete: async (req, res) => {
     try {
       const { id } = req.params;
-      const userId = req.admin._id;
+      const userId = req.admin.id;
 
-      const lead = await Lead.findOneAndDelete({ _id: id, userId });
+      const { data: lead, error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
 
       if (!lead) {
         return res.status(404).json({
@@ -235,21 +274,23 @@ const leadController = {
   // Get lead statistics
   stats: async (req, res) => {
     try {
-      const userId = req.admin._id;
+      const userId = req.admin.id;
 
-      const stats = await Lead.aggregate([
-        { $match: { userId } },
-        {
-          $group: {
-            _id: null,
-            totalLeads: { $sum: 1 },
-            avgRating: { $avg: '$rating' },
-            topBusinessTypes: { $push: '$businessTypes' }
-          }
-        }
-      ]);
+      const { data: leads, error } = await supabase
+        .from('leads')
+        .select('rating, business_types')
+        .eq('user_id', userId);
 
-      const result = stats[0] || { totalLeads: 0, avgRating: 0, topBusinessTypes: [] };
+      if (error) {
+        throw error;
+      }
+
+      const totalLeads = leads.length;
+      const avgRating = totalLeads > 0 
+        ? leads.reduce((sum, lead) => sum + (lead.rating || 0), 0) / totalLeads 
+        : 0;
+      
+      const result = { totalLeads, avgRating, topBusinessTypes: leads.map(l => l.business_types || []) };
 
       // Flatten and count business types
       const businessTypeCounts = {};

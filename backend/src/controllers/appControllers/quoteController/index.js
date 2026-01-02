@@ -1,5 +1,5 @@
-const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
-const methods = createCRUDController('Quote');
+const createSupabaseCRUDController = require('@/controllers/middlewaresControllers/createSupabaseCRUDController');
+const methods = createSupabaseCRUDController('quotes');
 
 const sendMail = require('./sendMail');
 const create = require('./create');

@@ -84,6 +84,16 @@ export default function AutoCompleteAsync({
     };
   }, [debouncedValue]);
 
+  // Load initial data when component mounts
+  useEffect(() => {
+    const options = {
+      q: '',
+      fields: searchFields,
+    };
+    const callback = asyncSearch(options);
+    onFetch(callback);
+  }, []);
+
   const onSearch = (searchText) => {
     isSearching.current = true;
     setSearching(true);
@@ -93,7 +103,9 @@ export default function AutoCompleteAsync({
   };
 
   useEffect(() => {
+    console.log('AutoCompleteAsync - isSuccess:', isSuccess, 'result:', result);
     if (isSuccess) {
+      console.log('Setting options:', result);
       setOptions(result);
     } else {
       setSearching(false);

@@ -1,8 +1,55 @@
+# Dependencies
 node_modules/
-*.zip
-.DS_Store
-.idea
-notes.md
-.env.local
+package-lock.json
+
+# Environment variables
 .env
+.env.local
+.env.production
+.env.development
+*.env
+!.env.example
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Generated files
 *.pdf
+*.zip
+
+# Temporary files
+notes.md
+temp/
+tmp/
+*.tmp
+
+# OS files
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Cache
+.cache/
+.eslintcache
+
+# Uploads
+uploads/
+public/uploads/

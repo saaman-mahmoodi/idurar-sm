@@ -1,12 +1,24 @@
-const mongoose = require('mongoose');
-exports.getData = ({ model }) => {
-  const Model = mongoose.model(model);
-  const result = Model.find({ removed: false, enabled: true });
-  return result;
+const supabase = require('@/config/supabase');
+
+exports.getData = async ({ model }) => {
+  const tableName = model.toLowerCase() + 's';
+  const { data, error } = await supabase
+    .from(tableName)
+    .select('*')
+    .eq('removed', false)
+    .eq('enabled', true);
+  
+  return error ? [] : data;
 };
 
-exports.getOne = ({ model, id }) => {
-  const Model = mongoose.model(model);
-  const result = Model.findOne({ _id: id, removed: false });
-  return result;
+exports.getOne = async ({ model, id }) => {
+  const tableName = model.toLowerCase() + 's';
+  const { data, error } = await supabase
+    .from(tableName)
+    .select('*')
+    .eq('id', id)
+    .eq('removed', false)
+    .single();
+  
+  return error ? null : data;
 };

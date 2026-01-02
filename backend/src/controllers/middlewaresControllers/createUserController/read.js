@@ -1,24 +1,28 @@
-const mongoose = require('mongoose');
+const supabase = require('@/config/supabase');
 
 const read = async (userModel, req, res) => {
-  const User = mongoose.model(userModel);
+  try {
+    const tableName = userModel.toLowerCase() + 's';
 
-  // Find document by id
-  const tmpResult = await User.findOne({
-    _id: req.params.id,
-    removed: false,
-  }).exec();
-  // If no results found, return document not found
-  if (!tmpResult) {
-    return res.status(404).json({
-      success: false,
-      result: null,
-      message: 'No document found ',
-    });
-  } else {
-    // Return success resposne
+    // Find document by id
+    const { data: tmpResult, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('removed', false)
+      .single();
+
+    if (error || !tmpResult) {
+      return res.status(404).json({
+        success: false,
+        result: null,
+        message: 'No document found ',
+      });
+    }
+
+    // Return success response
     let result = {
-      _id: tmpResult._id,
+      id: tmpResult.id,
       enabled: tmpResult.enabled,
       email: tmpResult.email,
       name: tmpResult.name,
@@ -31,6 +35,12 @@ const read = async (userModel, req, res) => {
       success: true,
       result,
       message: 'we found this document ',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      result: null,
+      message: error.message,
     });
   }
 };

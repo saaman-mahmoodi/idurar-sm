@@ -1,4 +1,4 @@
-const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
+const createSupabaseCRUDController = require('@/controllers/middlewaresControllers/createSupabaseCRUDController');
 const { routesList } = require('@/models/utils');
 
 const { globSync } = require('glob');
@@ -8,6 +8,20 @@ const pattern = './src/controllers/appControllers/*/**/';
 const controllerDirectories = globSync(pattern).map((filePath) => {
   return path.basename(filePath);
 });
+
+// Map model names to table names (camelCase to snake_case)
+const modelToTableMap = {
+  'Client': 'clients',
+  'Invoice': 'invoices',
+  'Quote': 'quotes',
+  'Payment': 'payments',
+  'PaymentMode': 'payment_modes',
+  'Taxes': 'taxes',
+  'Lead': 'leads',
+  'Setting': 'settings',
+  'Upload': 'uploads',
+  'Admin': 'admins'
+};
 
 const appControllers = () => {
   const controllers = {};
@@ -28,7 +42,8 @@ const appControllers = () => {
 
   routesList.forEach(({ modelName, controllerName }) => {
     if (!hasCustomControllers.includes(controllerName)) {
-      controllers[controllerName] = createCRUDController(modelName);
+      const tableName = modelToTableMap[modelName] || modelName.toLowerCase();
+      controllers[controllerName] = createSupabaseCRUDController(tableName);
     }
   });
 

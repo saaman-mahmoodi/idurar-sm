@@ -20,9 +20,9 @@ import { useSelector } from 'react-redux';
 import SelectAsync from '@/components/SelectAsync';
 
 export default function QuoteForm({ subTotal = 0, current = null }) {
-  const { last_quote_number } = useSelector(selectFinanceSettings);
+  const financeSettings = useSelector(selectFinanceSettings);
 
-  if (last_quote_number === undefined) {
+  if (!financeSettings || financeSettings.last_quote_number === undefined) {
     return <></>;
   }
 
@@ -32,7 +32,8 @@ export default function QuoteForm({ subTotal = 0, current = null }) {
 function LoadQuoteForm({ subTotal = 0, current = null }) {
   const translate = useLanguage();
   const { dateFormat } = useDate();
-  const { last_quote_number } = useSelector(selectFinanceSettings);
+  const financeSettings = useSelector(selectFinanceSettings);
+  const last_quote_number = financeSettings?.last_quote_number || 0;
   const [lastNumber, setLastNumber] = useState(() => last_quote_number + 1);
 
   const [total, setTotal] = useState(0);
@@ -80,6 +81,7 @@ function LoadQuoteForm({ subTotal = 0, current = null }) {
               entity={'client'}
               displayLabels={['name']}
               searchFields={'name'}
+              outputValue={'id'}
               redirectLabel={'Add New Client'}
               withRedirect
               urlToRedirect={'/customer'}

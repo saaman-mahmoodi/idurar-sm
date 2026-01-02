@@ -1,6 +1,4 @@
-const mongoose = require('mongoose');
-
-const Model = mongoose.model('Setting');
+const supabase = require('@/config/supabase');
 
 const updateBySettingKey = async ({ settingKey, settingValue }) => {
   try {
@@ -8,23 +6,18 @@ const updateBySettingKey = async ({ settingKey, settingValue }) => {
       return null;
     }
 
-    const result = await Model.findOneAndUpdate(
-      { settingKey },
-      {
-        settingValue,
-      },
-      {
-        new: true, // return the new result instead of the old one
-        runValidators: true,
-      }
-    ).exec();
-    // If no results found, return document not found
-    if (!result) {
+    const { data: result, error } = await supabase
+      .from('settings')
+      .update({ setting_value: settingValue })
+      .eq('setting_key', settingKey)
+      .select()
+      .single();
+
+    if (error || !result) {
       return null;
-    } else {
-      // Return success resposne
-      return result;
     }
+
+    return result;
   } catch {
     return null;
   }

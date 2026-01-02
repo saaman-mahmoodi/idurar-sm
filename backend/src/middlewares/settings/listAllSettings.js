@@ -1,19 +1,17 @@
-const mongoose = require('mongoose');
-
-const Model = mongoose.model('Setting');
+const supabase = require('@/config/supabase');
 
 const listAllSettings = async () => {
   try {
-    //  Query the database for a list of all results
-    const result = await Model.find({
-      removed: false,
-    }).exec();
+    const { data: result, error } = await supabase
+      .from('settings')
+      .select('*')
+      .eq('removed', false);
 
-    if (result.length > 0) {
-      return result;
-    } else {
+    if (error || !result) {
       return [];
     }
+
+    return result;
   } catch {
     return [];
   }

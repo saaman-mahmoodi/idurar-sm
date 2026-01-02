@@ -1,49 +1,75 @@
-const mongoose = require('mongoose');
+const supabase = require('@/config/supabase');
 
-const Model = mongoose.model('Setting');
+// Helper to convert snake_case to camelCase
+const toCamelCase = (str) => {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+};
+
+// Convert object keys from snake_case to camelCase
+const keysToCamelCase = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(keysToCamelCase);
+  
+  return Object.keys(obj).reduce((acc, key) => {
+    const camelKey = toCamelCase(key);
+    acc[camelKey] = keysToCamelCase(obj[key]);
+    return acc;
+  }, {});
+};
 
 const listBySettingKey = async (req, res) => {
-  // Find document by id
+  try {
+    const settingKeyArray = req.query.settingKeyArray ? req.query.settingKeyArray.split(',') : [];
 
-  const settingKeyArray = req.query.settingKeyArray ? req.query.settingKeyArray.split(',') : [];
+    if (settingKeyArray.length === 0) {
+      return res
+        .status(202)
+        .json({
+          success: false,
+          result: [],
+          message: 'Please provide settings you need',
+        })
+        .end();
+    }
 
-  const settingsToShow = { $or: [] };
+    // Query with OR condition for multiple setting keys
+    const { data: results, error } = await supabase
+      .from('settings')
+      .select('*')
+      .in('setting_key', settingKeyArray)
+      .eq('removed', false);
 
-  if (settingKeyArray.length === 0) {
-    return res
-      .status(202)
-      .json({
+    if (error) {
+      return res.status(500).json({
         success: false,
         result: [],
-        message: 'Please provide settings you need',
-      })
-      .end();
-  }
+        message: error.message,
+      });
+    }
 
-  for (const settingKey of settingKeyArray) {
-    settingsToShow.$or.push({ settingKey });
-  }
-
-  let results = await Model.find({
-    ...settingsToShow,
-  }).where('removed', false);
-
-  // If no results found, return document not found
-  if (results.length >= 1) {
-    return res.status(200).json({
-      success: true,
-      result: results,
-      message: 'Successfully found all documents',
+    // If no results found, return document not found
+    if (results && results.length >= 1) {
+      return res.status(200).json({
+        success: true,
+        result: results.map(keysToCamelCase),
+        message: 'Successfully found all documents',
+      });
+    } else {
+      return res
+        .status(202)
+        .json({
+          success: false,
+          result: [],
+          message: 'No document found by this request',
+        })
+        .end();
+    }
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      result: [],
+      message: error.message,
     });
-  } else {
-    return res
-      .status(202)
-      .json({
-        success: false,
-        result: [],
-        message: 'No document found by this request',
-      })
-      .end();
   }
 };
 

@@ -1,5 +1,5 @@
-const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
-const crudController = createCRUDController('Setting');
+const createSupabaseCRUDController = require('@/controllers/middlewaresControllers/createSupabaseCRUDController');
+const crudController = createSupabaseCRUDController('settings');
 
 const listBySettingKey = require('./listBySettingKey');
 const readBySettingKey = require('./readBySettingKey');

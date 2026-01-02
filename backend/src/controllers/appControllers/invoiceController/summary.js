@@ -1,8 +1,5 @@
-const mongoose = require('mongoose');
+const supabase = require('@/config/supabase');
 const moment = require('moment');
-
-const Model = mongoose.model('Invoice');
-
 const { loadSettings } = require('@/middlewares/settings');
 
 const summary = async (req, res) => {
@@ -28,184 +25,100 @@ const summary = async (req, res) => {
   let startDate = currentDate.clone().startOf(defaultType);
   let endDate = currentDate.clone().endOf(defaultType);
 
-  const statuses = ['draft', 'pending', 'overdue', 'paid', 'unpaid', 'partially'];
+  try {
+    const statuses = ['draft', 'pending', 'overdue', 'paid', 'unpaid', 'partially'];
 
-  const response = await Model.aggregate([
-    {
-      $match: {
-        removed: false,
-        // date: {
-        //   $gte: startDate.toDate(),
-        //   $lte: endDate.toDate(),
-        // },
-      },
-    },
-    {
-      $facet: {
-        totalInvoice: [
-          {
-            $group: {
-              _id: null,
-              total: {
-                $sum: '$total',
-              },
-              count: {
-                $sum: 1,
-              },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              total: '$total',
-              count: '$count',
-            },
-          },
-        ],
-        statusCounts: [
-          {
-            $group: {
-              _id: '$status',
-              count: {
-                $sum: 1,
-              },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              status: '$_id',
-              count: '$count',
-            },
-          },
-        ],
-        paymentStatusCounts: [
-          {
-            $group: {
-              _id: '$paymentStatus',
-              count: {
-                $sum: 1,
-              },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              status: '$_id',
-              count: '$count',
-            },
-          },
-        ],
-        overdueCounts: [
-          {
-            $match: {
-              expiredDate: {
-                $lt: new Date(),
-              },
-            },
-          },
-          {
-            $group: {
-              _id: '$status',
-              count: {
-                $sum: 1,
-              },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              status: '$_id',
-              count: '$count',
-            },
-          },
-        ],
-      },
-    },
-  ]);
+    // Get all invoices
+    const { data: allInvoices, error: allError } = await supabase
+      .from('invoices')
+      .select('total, status, payment_status, expired_date, credit')
+      .eq('removed', false);
 
-  let result = [];
+    if (allError) throw allError;
 
-  const totalInvoices = response[0].totalInvoice ? response[0].totalInvoice[0] : 0;
-  const statusResult = response[0].statusCounts || [];
-  const paymentStatusResult = response[0].paymentStatusCounts || [];
-  const overdueResult = response[0].overdueCounts || [];
-
-  const statusResultMap = statusResult.map((item) => {
-    return {
-      ...item,
-      percentage: Math.round((item.count / totalInvoices.count) * 100),
+    const totalInvoices = {
+      total: allInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0),
+      count: allInvoices.length
     };
-  });
 
-  const paymentStatusResultMap = paymentStatusResult.map((item) => {
-    return {
-      ...item,
-      percentage: Math.round((item.count / totalInvoices.count) * 100),
-    };
-  });
+    // Calculate status counts
+    const statusCounts = {};
+    const paymentStatusCounts = {};
+    const overdueCounts = {};
 
-  const overdueResultMap = overdueResult.map((item) => {
-    return {
-      ...item,
-      status: 'overdue',
-      percentage: Math.round((item.count / totalInvoices.count) * 100),
-    };
-  });
+    allInvoices.forEach(invoice => {
+      // Status counts
+      statusCounts[invoice.status] = (statusCounts[invoice.status] || 0) + 1;
+      
+      // Payment status counts
+      paymentStatusCounts[invoice.payment_status] = (paymentStatusCounts[invoice.payment_status] || 0) + 1;
+      
+      // Overdue counts
+      if (invoice.expired_date && new Date(invoice.expired_date) < new Date()) {
+        overdueCounts['overdue'] = (overdueCounts['overdue'] || 0) + 1;
+      }
+    });
 
-  statuses.forEach((status) => {
-    const found = [...paymentStatusResultMap, ...statusResultMap, ...overdueResultMap].find(
-      (item) => item.status === status
+    const statusResult = Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / totalInvoices.count) * 100)
+    }));
+
+    const paymentStatusResult = Object.entries(paymentStatusCounts).map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / totalInvoices.count) * 100)
+    }));
+
+    const overdueResult = Object.entries(overdueCounts).map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / totalInvoices.count) * 100)
+    }));
+
+    let result = [];
+    statuses.forEach((status) => {
+      const found = [...paymentStatusResult, ...statusResult, ...overdueResult].find(
+        (item) => item.status === status
+      );
+      if (found) {
+        result.push(found);
+      }
+    });
+
+    // Calculate unpaid total
+    const { data: unpaidInvoices, error: unpaidError } = await supabase
+      .from('invoices')
+      .select('total, credit')
+      .eq('removed', false)
+      .in('payment_status', ['unpaid', 'partially']);
+
+    if (unpaidError) throw unpaidError;
+
+    const total_undue = unpaidInvoices.reduce((sum, inv) => 
+      sum + ((inv.total || 0) - (inv.credit || 0)), 0
     );
-    if (found) {
-      result.push(found);
-    }
-  });
 
-  const unpaid = await Model.aggregate([
-    {
-      $match: {
-        removed: false,
+    const finalResult = {
+      total: totalInvoices.total,
+      total_undue,
+      type,
+      performance: result,
+    };
 
-        // date: {
-        //   $gte: startDate.toDate(),
-        //   $lte: endDate.toDate(),
-        // },
-        paymentStatus: {
-          $in: ['unpaid', 'partially'],
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        total_amount: {
-          $sum: {
-            $subtract: ['$total', '$credit'],
-          },
-        },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        total_amount: '$total_amount',
-      },
-    },
-  ]);
-
-  const finalResult = {
-    total: totalInvoices?.total,
-    total_undue: unpaid.length > 0 ? unpaid[0].total_amount : 0,
-    type,
-    performance: result,
-  };
-
-  return res.status(200).json({
-    success: true,
-    result: finalResult,
-    message: `Successfully found all invoices for the last ${defaultType}`,
-  });
+    return res.status(200).json({
+      success: true,
+      result: finalResult,
+      message: `Successfully found all invoices for the last ${defaultType}`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      result: null,
+      message: error.message,
+    });
+  }
 };
 
 module.exports = summary;

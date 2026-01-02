@@ -49,14 +49,14 @@ export default function DashboardModule() {
   );
 
   useEffect(() => {
-    const currency = money_format_settings.default_currency_code || null;
+    const currency = money_format_settings?.default_currency_code || null;
 
     if (currency) {
       fetchInvoicesStats(getStatsData({ entity: 'invoice', currency }));
       fetchQuotesStats(getStatsData({ entity: 'quote', currency }));
       fetchPayemntsStats(getStatsData({ entity: 'payment', currency }));
     }
-  }, [money_format_settings.default_currency_code]);
+  }, [money_format_settings?.default_currency_code]);
 
   const dataTableColumns = [
     {

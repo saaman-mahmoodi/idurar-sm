@@ -37,14 +37,14 @@ export default function RecentTable({ ...props }) {
 
   const handleRead = (record) => {
     dispatch(erp.currentItem({ data: record }));
-    navigate(`/${entity}/read/${record._id}`);
+    navigate(`/${entity}/read/${record.id}`);
   };
   const handleEdit = (record) => {
     dispatch(erp.currentAction({ actionType: 'update', data: record }));
-    navigate(`/${entity}/update/${record._id}`);
+    navigate(`/${entity}/update/${record.id}`);
   };
   const handleDownload = (record) => {
-    window.open(`${DOWNLOAD_BASE_URL}${entity}/${entity}-${record._id}.pdf`, '_blank');
+    window.open(`${DOWNLOAD_BASE_URL}${entity}/${entity}-${record.id}.pdf`, '_blank');
   };
 
   dataTableColumns = [

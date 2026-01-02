@@ -20,9 +20,9 @@ import { useSelector } from 'react-redux';
 import SelectAsync from '@/components/SelectAsync';
 
 export default function InvoiceForm({ subTotal = 0, current = null }) {
-  const { last_invoice_number } = useSelector(selectFinanceSettings);
+  const financeSettings = useSelector(selectFinanceSettings);
 
-  if (last_invoice_number === undefined) {
+  if (!financeSettings || financeSettings.last_invoice_number === undefined) {
     return <></>;
   }
 
@@ -32,7 +32,8 @@ export default function InvoiceForm({ subTotal = 0, current = null }) {
 function LoadInvoiceForm({ subTotal = 0, current = null }) {
   const translate = useLanguage();
   const { dateFormat } = useDate();
-  const { last_invoice_number } = useSelector(selectFinanceSettings);
+  const financeSettings = useSelector(selectFinanceSettings);
+  const last_invoice_number = financeSettings?.last_invoice_number || 0;
   const [total, setTotal] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [taxTotal, setTaxTotal] = useState(0);
@@ -80,6 +81,7 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
               entity={'client'}
               displayLabels={['name']}
               searchFields={'name'}
+              outputValue={'id'}
               redirectLabel={'Add New Client'}
               withRedirect
               urlToRedirect={'/customer'}

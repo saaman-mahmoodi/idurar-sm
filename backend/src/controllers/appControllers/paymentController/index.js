@@ -1,5 +1,5 @@
-const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
-const methods = createCRUDController('Payment');
+const createSupabaseCRUDController = require('@/controllers/middlewaresControllers/createSupabaseCRUDController');
+const methods = createSupabaseCRUDController('payments');
 
 const create = require('./create');
 const summary = require('./summary');

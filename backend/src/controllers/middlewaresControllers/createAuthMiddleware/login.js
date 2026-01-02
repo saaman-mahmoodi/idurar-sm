@@ -1,12 +1,7 @@
 const Joi = require('joi');
-
-const mongoose = require('mongoose');
-
-const authUser = require('./authUser');
+const supabase = require('@/config/supabase');
 
 const login = async (req, res, { userModel }) => {
-  const UserPasswordModel = mongoose.model(userModel + 'Password');
-  const UserModel = mongoose.model(userModel);
   const { email, password } = req.body;
 
   // validate
@@ -28,32 +23,63 @@ const login = async (req, res, { userModel }) => {
     });
   }
 
-  const user = await UserModel.findOne({ email: email, removed: false });
-
-  // console.log(user);
-  if (!user)
-    return res.status(404).json({
-      success: false,
-      result: null,
-      message: 'No account with this email has been registered.',
+  try {
+    // Sign in with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
-  const databasePassword = await UserPasswordModel.findOne({ user: user._id, removed: false });
+    if (authError) {
+      return res.status(401).json({
+        success: false,
+        result: null,
+        message: authError.message || 'Invalid credentials.',
+      });
+    }
 
-  if (!user.enabled)
-    return res.status(409).json({
+    // Get admin data from database
+    const { data: admin, error: dbError } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('auth_user_id', authData.user.id)
+      .eq('removed', false)
+      .single();
+
+    if (dbError || !admin) {
+      return res.status(404).json({
+        success: false,
+        result: null,
+        message: 'No account with this email has been registered.',
+      });
+    }
+
+    if (!admin.enabled) {
+      return res.status(409).json({
+        success: false,
+        result: null,
+        message: 'Your account is disabled, contact your account administrator',
+      });
+    }
+
+    // Return success with token
+    return res.status(200).json({
+      success: true,
+      result: {
+        admin,
+        token: authData.session.access_token,
+        refreshToken: authData.session.refresh_token,
+      },
+      message: 'Successfully logged in',
+    });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       result: null,
-      message: 'Your account is disabled, contact your account adminstrator',
+      message: error.message,
+      error: error,
     });
-
-  //  authUser if your has correct password
-  authUser(req, res, {
-    user,
-    databasePassword,
-    password,
-    UserPasswordModel,
-  });
+  }
 };
 
 module.exports = login;

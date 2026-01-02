@@ -1,15 +1,9 @@
-const jwt = require('jsonwebtoken');
+const supabase = require('@/config/supabase');
 
-const mongoose = require('mongoose');
-
-const isValidAuthToken = async (req, res, next, { userModel, jwtSecret = 'JWT_SECRET' }) => {
+const isValidAuthToken = async (req, res, next, { userModel }) => {
   try {
-    const UserPassword = mongoose.model(userModel + 'Password');
-    const User = mongoose.model(userModel);
-
-    // const token = req.cookies[`token_${cloud._id}`];
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Extract the token
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token)
       return res.status(401).json({
@@ -19,9 +13,10 @@ const isValidAuthToken = async (req, res, next, { userModel, jwtSecret = 'JWT_SE
         jwtExpired: true,
       });
 
-    const verified = jwt.verify(token, process.env[jwtSecret]);
+    // Verify token with Supabase Auth
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
 
-    if (!verified)
+    if (authError || !authUser)
       return res.status(401).json({
         success: false,
         result: null,
@@ -29,33 +24,35 @@ const isValidAuthToken = async (req, res, next, { userModel, jwtSecret = 'JWT_SE
         jwtExpired: true,
       });
 
-    const userPasswordPromise = UserPassword.findOne({ user: verified.id, removed: false });
-    const userPromise = User.findOne({ _id: verified.id, removed: false });
+    // Get admin data from database
+    const { data: admin, error: dbError } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('auth_user_id', authUser.id)
+      .eq('removed', false)
+      .single();
 
-    const [user, userPassword] = await Promise.all([userPromise, userPasswordPromise]);
-
-    if (!user)
+    if (dbError || !admin)
       return res.status(401).json({
         success: false,
         result: null,
-        message: "User doens't Exist, authorization denied.",
+        message: "User doesn't exist, authorization denied.",
         jwtExpired: true,
       });
 
-    const { loggedSessions } = userPassword;
-
-    if (!loggedSessions.includes(token))
+    if (!admin.enabled)
       return res.status(401).json({
         success: false,
         result: null,
-        message: 'User is already logout try to login, authorization denied.',
+        message: 'User account is disabled, authorization denied.',
         jwtExpired: true,
       });
-    else {
-      const reqUserName = userModel.toLowerCase();
-      req[reqUserName] = user;
-      next();
-    }
+
+    // Attach user to request
+    const reqUserName = userModel.toLowerCase();
+    req[reqUserName] = admin;
+    req.authUser = authUser;
+    next();
   } catch (error) {
     return res.status(500).json({
       success: false,

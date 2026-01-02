@@ -1,13 +1,34 @@
-const mongoose = require('mongoose');
-const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
+const createSupabaseCRUDController = require('@/controllers/middlewaresControllers/createSupabaseCRUDController');
+const supabase = require('@/config/supabase');
 
 const summary = require('./summary');
 
 function modelController() {
-  const Model = mongoose.model('Client');
-  const methods = createCRUDController('Client');
+  const methods = createSupabaseCRUDController('clients');
 
-  methods.summary = (req, res) => summary(Model, req, res);
+  methods.summary = async (req, res) => {
+    try {
+      const { data: result, error, count } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('removed', false);
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        result: { count },
+        message: 'Successfully retrieved summary',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: error.message,
+      });
+    }
+  };
+  
   return methods;
 }
 

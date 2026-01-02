@@ -1,66 +1,73 @@
-const mongoose = require('mongoose');
+const supabase = require('@/config/supabase');
 
-const Model = mongoose.model('Quote');
+const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
 const paginatedList = async (req, res) => {
-  const page = req.query.page || 1;
-  const limit = parseInt(req.query.items) || 10;
-  const skip = page * limit - limit;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.items) || 10;
+    const skip = (page - 1) * limit;
 
-  //  Query the database for a list of all results
-  const { sortBy = 'enabled', sortValue = -1, filter, equal } = req.query;
+    const { sortBy = 'created_at', sortValue = -1, filter, equal, q } = req.query;
+    const fieldsArray = req.query.fields ? req.query.fields.split(',') : [];
 
-  const fieldsArray = req.query.fields ? req.query.fields.split(',') : [];
+    let query = supabase
+      .from('quotes')
+      .select(`
+        *,
+        client:clients(*),
+        created_by_admin:admins!created_by(id, name, email)
+      `, { count: 'exact' })
+      .eq('removed', false);
 
-  let fields;
+    // Apply filter if provided
+    if (filter && equal !== undefined) {
+      const snakeFilter = toSnakeCase(filter);
+      query = query.eq(snakeFilter, equal);
+    }
 
-  fields = fieldsArray.length === 0 ? {} : { $or: [] };
+    // Apply search if provided
+    if (q && fieldsArray.length > 0) {
+      const searchConditions = fieldsArray
+        .map(field => `${toSnakeCase(field)}.ilike.%${q}%`)
+        .join(',');
+      query = query.or(searchConditions);
+    }
 
-  for (const field of fieldsArray) {
-    fields.$or.push({ [field]: { $regex: new RegExp(req.query.q, 'i') } });
-  }
+    // Apply sorting
+    const snakeSortBy = toSnakeCase(sortBy);
+    query = query.order(snakeSortBy, { ascending: sortValue === 1 });
 
-  //  Query the database for a list of all results
-  const resultsPromise = Model.find({
-    removed: false,
+    // Apply pagination
+    query = query.range(skip, skip + limit - 1);
 
-    [filter]: equal,
-    ...fields,
-  })
-    .skip(skip)
-    .limit(limit)
-    .sort({ [sortBy]: sortValue })
-    .populate('createdBy', 'name')
-    .exec();
+    const { data: result, error, count } = await query;
 
-  // Counting the total documents
-  const countPromise = Model.countDocuments({
-    removed: false,
+    if (error) throw error;
 
-    [filter]: equal,
-    ...fields,
-  });
+    const pages = Math.ceil(count / limit);
+    const pagination = { page, pages, count };
 
-  // Resolving both promises
-  const [result, count] = await Promise.all([resultsPromise, countPromise]);
-  // Calculating total pages
-  const pages = Math.ceil(count / limit);
-
-  // Getting Pagination Object
-  const pagination = { page, pages, count };
-  if (count > 0) {
-    return res.status(200).json({
-      success: true,
-      result,
-      pagination,
-      message: 'Successfully found all documents',
-    });
-  } else {
-    return res.status(203).json({
-      success: true,
-      result: [],
-      pagination,
-      message: 'Collection is Empty',
+    if (count > 0) {
+      return res.status(200).json({
+        success: true,
+        result,
+        pagination,
+        message: 'Successfully found all documents',
+      });
+    } else {
+      return res.status(203).json({
+        success: true,
+        result: [],
+        pagination,
+        message: 'Collection is Empty',
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      result: null,
+      message: error.message,
     });
   }
 };

@@ -1,35 +1,5 @@
-const mongoose = require('mongoose');
+// Supabase-based Client model placeholder
+// The actual table schema is defined in backend/supabase/schema.sql
+// This file exists to register the 'client' entity in the routing system
 
-const schema = new mongoose.Schema({
-  removed: {
-    type: Boolean,
-    default: false,
-  },
-  enabled: {
-    type: Boolean,
-    default: true,
-  },
-
-  name: {
-    type: String,
-    required: true,
-  },
-  phone: String,
-  country: String,
-  address: String,
-  email: String,
-  createdBy: { type: mongoose.Schema.ObjectId, ref: 'Admin' },
-  assigned: { type: mongoose.Schema.ObjectId, ref: 'Admin' },
-  created: {
-    type: Date,
-    default: Date.now,
-  },
-  updated: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-schema.plugin(require('mongoose-autopopulate'));
-
-module.exports = mongoose.model('Client', schema);
+module.exports = 'Client';

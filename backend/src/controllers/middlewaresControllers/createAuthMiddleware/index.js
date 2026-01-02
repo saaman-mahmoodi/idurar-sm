@@ -1,8 +1,9 @@
 const isValidAuthToken = require('./isValidAuthToken');
 const login = require('./login');
 const logout = require('./logout');
-const forgetPassword = require('./forgetPassword');
-const resetPassword = require('./resetPassword');
+// TODO: Migrate to Supabase Auth password reset
+// const forgetPassword = require('./forgetPassword');
+// const resetPassword = require('./resetPassword');
 
 const createAuthMiddleware = (userModel) => {
   let authMethods = {};
@@ -17,15 +18,16 @@ const createAuthMiddleware = (userModel) => {
       userModel,
     });
 
-  authMethods.forgetPassword = (req, res) =>
-    forgetPassword(req, res, {
-      userModel,
-    });
+  // TODO: Migrate to Supabase Auth password reset
+  // authMethods.forgetPassword = (req, res) =>
+  //   forgetPassword(req, res, {
+  //     userModel,
+  //   });
 
-  authMethods.resetPassword = (req, res) =>
-    resetPassword(req, res, {
-      userModel,
-    });
+  // authMethods.resetPassword = (req, res) =>
+  //   resetPassword(req, res, {
+  //     userModel,
+  //   });
 
   authMethods.logout = (req, res) =>
     logout(req, res, {
